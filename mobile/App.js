@@ -21,6 +21,10 @@ import { StatusBar } from 'expo-status-bar';
 import LogoAgendacar from './components/LogoAgendacar';
 
 function getApiBaseUrl() {
+  if (process.env.EXPO_PUBLIC_API_URL) {
+    return process.env.EXPO_PUBLIC_API_URL;
+  }
+
   if (Platform.OS === 'web') {
     const hostname = globalThis.location?.hostname || 'localhost';
     return `http://${hostname}:4000`;
