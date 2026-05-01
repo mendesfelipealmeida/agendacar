@@ -31,6 +31,12 @@
     },
     "plugins": [
       "expo-font"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "6fc86c3d-5285-4a09-8f59-a26dbb74ef1c"
+      }
+    },
+    "owner": "mendesfelipealmeida"
   }
 }
