@@ -13,6 +13,7 @@ yarn-error.log*
 
 eas-inspect/
 eas-log-*.txt
+*.zip
 
 .DS_Store
 Thumbs.db

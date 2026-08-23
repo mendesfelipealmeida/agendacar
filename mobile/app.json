@@ -3,7 +3,7 @@
     "name": "Agendacar",
     "slug": "agendacar",
     "version": "1.0.0",
-    "sdkVersion": "52.0.0",
+    "sdkVersion": "54.0.0",
     "platforms": [
       "ios",
       "android",
@@ -15,11 +15,6 @@
     "orientation": "portrait",
     "primaryColor": "#1e3a8a",
     "icon": "./assets/icon.png",
-    "splash": {
-      "image": "./assets/splash.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#1e3a8a"
-    },
     "android": {
       "package": "com.agendacar.app",
       "versionCode": 1,
@@ -30,7 +25,15 @@
       "buildNumber": "1.0.0"
     },
     "plugins": [
-      "expo-font"
+      "expo-font",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#1e3a8a"
+        }
+      ]
     ],
     "extra": {
       "eas": {

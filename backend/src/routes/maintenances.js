@@ -1,5 +1,6 @@
 const express = require('express');
 const Maintenance = require('../models/maintenance');
+const Vehicle = require('../models/vehicle');
 
 const router = express.Router();
 
@@ -17,6 +18,13 @@ router.post('/', async (req, res) => {
   try {
     const maintenance = new Maintenance(req.body);
     const saved = await maintenance.save();
+
+    if (Number.isFinite(saved.mileage)) {
+      await Vehicle.findByIdAndUpdate(saved.vehicle, {
+        $max: { mileage: saved.mileage },
+      });
+    }
+
     await saved.populate('vehicle');
     res.status(201).json(saved);
   } catch (error) {

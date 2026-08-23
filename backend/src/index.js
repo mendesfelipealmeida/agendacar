@@ -4,6 +4,7 @@ const dotenv = require('dotenv');
 const connectDatabase = require('./config/db');
 const vehicleRoutes = require('./routes/vehicles');
 const maintenanceRoutes = require('./routes/maintenances');
+const brands = require('./data/brands');
 
 dotenv.config();
 const app = express();
@@ -16,6 +17,10 @@ connectDatabase();
 
 app.get('/', (req, res) => {
   res.json({ message: 'Agendacar API está rodando' });
+});
+
+app.get('/api/brands', (req, res) => {
+  res.json(brands);
 });
 
 app.use('/api/vehicles', vehicleRoutes);

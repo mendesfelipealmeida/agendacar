@@ -136,6 +136,65 @@ function getAreaLabel(area) {
   return area === 'mechanic' ? 'Area Mecanico' : 'Area Cliente';
 }
 
+function getVehicleId(vehicle) {
+  if (!vehicle) return '';
+  if (typeof vehicle === 'string') return vehicle;
+  return vehicle._id || vehicle.id || '';
+}
+
+function buildModelsByBrand(brandData) {
+  return brandData.reduce((acc, item) => {
+    acc[item.brand] = item.models;
+    return acc;
+  }, {});
+}
+
+function buildMaintenanceAlerts(vehicles, maintenances) {
+  const latestByVehicleAndService = new Map();
+
+  maintenances.forEach((item) => {
+    if (!item.nextServiceAt) return;
+
+    const vehicleId = getVehicleId(item.vehicle);
+    if (!vehicleId) return;
+
+    const key = `${vehicleId}:${item.serviceType}`;
+    const current = latestByVehicleAndService.get(key);
+    const itemDate = new Date(item.date || item.createdAt || 0).getTime();
+    const currentDate = current ? new Date(current.date || current.createdAt || 0).getTime() : 0;
+
+    if (!current || itemDate >= currentDate) {
+      latestByVehicleAndService.set(key, item);
+    }
+  });
+
+  return Array.from(latestByVehicleAndService.values())
+    .map((item) => {
+      const vehicle = typeof item.vehicle === 'object'
+        ? item.vehicle
+        : vehicles.find((candidate) => candidate._id === item.vehicle);
+
+      if (!vehicle) return null;
+
+      const baseMileage = Number(item.mileage) || 0;
+      const currentMileage = Math.max(Number(vehicle.mileage) || 0, baseMileage);
+      const targetMileage = baseMileage + Number(item.nextServiceAt);
+      const remainingMileage = targetMileage - currentMileage;
+
+      if (remainingMileage > 1000) return null;
+
+      return {
+        id: item._id,
+        serviceType: item.serviceType,
+        vehicleName: formatVehicle(vehicle),
+        remainingMileage,
+        targetMileage,
+      };
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.remainingMileage - b.remainingMileage);
+}
+
 export default function App() {
   const [fontsLoaded] = useFonts({
     Poppins_400Regular,
@@ -146,8 +205,30 @@ export default function App() {
   const [currentArea, setCurrentArea] = useState(null);
   const [vehicles, setVehicles] = useState([]);
   const [maintenances, setMaintenances] = useState([]);
+  const [brandOptions, setBrandOptions] = useState(BRANDS);
+  const [modelsByBrand, setModelsByBrand] = useState(MODELS);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const maintenanceAlerts = useMemo(
+    () => buildMaintenanceAlerts(vehicles, maintenances),
+    [vehicles, maintenances],
+  );
+
+  useEffect(() => {
+    const loadBrands = async () => {
+      try {
+        const brandData = await requestJson('/api/brands');
+        if (Array.isArray(brandData) && brandData.length > 0) {
+          setBrandOptions(brandData.map((item) => item.brand));
+          setModelsByBrand(buildModelsByBrand(brandData));
+        }
+      } catch {
+        // Keep the local fallback so the app can still be used offline or during backend setup.
+      }
+    };
+
+    loadBrands();
+  }, []);
 
   const loadData = useCallback(async () => {
     if (!currentArea) {
@@ -184,7 +265,16 @@ export default function App() {
 
     switch (currentScreen) {
       case 'vehicles':
-        return <VehiclesScreen area={currentArea} vehicles={vehicles} onNavigate={setCurrentScreen} onReload={loadData} />;
+        return (
+          <VehiclesScreen
+            area={currentArea}
+            brandOptions={brandOptions}
+            modelsByBrand={modelsByBrand}
+            vehicles={vehicles}
+            onNavigate={setCurrentScreen}
+            onReload={loadData}
+          />
+        );
       case 'maintenance':
         return (
           <MaintenanceScreen
@@ -200,6 +290,7 @@ export default function App() {
           <HomeScreen
             errorMessage={errorMessage}
             currentArea={currentArea}
+            maintenanceAlerts={maintenanceAlerts}
             vehiclesCount={vehicles.length}
             maintenancesCount={maintenances.length}
             onSelectArea={(area) => {
@@ -235,6 +326,7 @@ const LoadingScreen = () => (
 const HomeScreen = ({
   currentArea,
   errorMessage,
+  maintenanceAlerts,
   vehiclesCount,
   maintenancesCount,
   onChangeArea,
@@ -242,7 +334,7 @@ const HomeScreen = ({
   onReload,
   onSelectArea,
 }) => (
-  <View style={styles.homeContainer}>
+  <ScrollView style={styles.homeScroll} contentContainerStyle={styles.homeContainer}>
     <View style={styles.logoContainer}>
       <LogoAgendacar width={188} height={188} />
     </View>
@@ -289,6 +381,8 @@ const HomeScreen = ({
           </View>
         )}
 
+        {!errorMessage ? <AlertSummary alerts={maintenanceAlerts} /> : null}
+
         <View style={styles.menuContainer}>
           <TouchableOpacity style={styles.menuButton} onPress={() => onNavigate('vehicles')}>
             <Text style={styles.menuButtonText}>
@@ -308,10 +402,38 @@ const HomeScreen = ({
         </View>
       </>
     )}
-  </View>
+  </ScrollView>
 );
 
-const VehiclesScreen = ({ area, vehicles, onNavigate, onReload }) => {
+const AlertSummary = ({ alerts }) => {
+  if (!alerts.length) {
+    return (
+      <View style={styles.alertPanelOk}>
+        <Text style={styles.alertPanelTitle}>Manutencoes em dia</Text>
+        <Text style={styles.alertPanelText}>Nenhuma revisao vencida ou proxima nos proximos 1.000 km.</Text>
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.alertPanel}>
+      <Text style={styles.alertPanelTitle}>Alertas de manutencao</Text>
+      {alerts.slice(0, 3).map((alert) => (
+        <View key={`${alert.id}-${alert.serviceType}`} style={styles.alertItem}>
+          <Text style={styles.alertItemTitle}>{alert.serviceType}</Text>
+          <Text style={styles.alertPanelText}>{alert.vehicleName}</Text>
+          <Text style={styles.alertPanelText}>
+            {alert.remainingMileage <= 0
+              ? `Vencida ha ${Math.abs(alert.remainingMileage).toLocaleString('pt-BR')} km`
+              : `Faltam ${alert.remainingMileage.toLocaleString('pt-BR')} km`}
+          </Text>
+        </View>
+      ))}
+    </View>
+  );
+};
+
+const VehiclesScreen = ({ area, brandOptions, modelsByBrand, vehicles, onNavigate, onReload }) => {
   const [selectedBrand, setSelectedBrand] = useState('');
   const [selectedModel, setSelectedModel] = useState('');
   const [ownerName, setOwnerName] = useState('');
@@ -320,7 +442,7 @@ const VehiclesScreen = ({ area, vehicles, onNavigate, onReload }) => {
   const [mileage, setMileage] = useState('');
   const [saving, setSaving] = useState(false);
 
-  const availableModels = useMemo(() => MODELS[selectedBrand] || [], [selectedBrand]);
+  const availableModels = useMemo(() => modelsByBrand[selectedBrand] || [], [modelsByBrand, selectedBrand]);
 
   const resetForm = () => {
     setSelectedBrand('');
@@ -390,7 +512,7 @@ const VehiclesScreen = ({ area, vehicles, onNavigate, onReload }) => {
       <View style={styles.form}>
         <Text style={styles.label}>Marca *</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.optionScroll}>
-          {BRANDS.map((brand) => (
+          {brandOptions.map((brand) => (
             <TouchableOpacity
               key={brand}
               style={[styles.optionButton, selectedBrand === brand && styles.optionButtonSelected]}
@@ -598,7 +720,7 @@ const MaintenanceScreen = ({ area, vehicles, maintenances, onNavigate, onReload 
 
         <Input label="Data" value={date} onChangeText={setDate} placeholder="01/05/2026" />
         <Input label="Quilometragem" value={mileage} onChangeText={setMileage} placeholder="0" keyboardType="numeric" />
-        <Input label="Proxima revisao em km" value={nextServiceAt} onChangeText={setNextServiceAt} placeholder="Ex: 5000" keyboardType="numeric" />
+        <Input label="Intervalo ate proxima revisao (km)" value={nextServiceAt} onChangeText={setNextServiceAt} placeholder="Ex: 5000" keyboardType="numeric" />
         <Input
           label="Descricao"
           value={description}
@@ -628,7 +750,7 @@ const MaintenanceScreen = ({ area, vehicles, maintenances, onNavigate, onReload 
               {area === 'client' ? <Text style={styles.cardInfo}>Oficina: {item.workshopName || '-'}</Text> : null}
               <Text style={styles.cardInfo}>Data: {formatDate(item.date)}</Text>
               <Text style={styles.cardInfo}>Km: {(item.mileage || 0).toLocaleString('pt-BR')}</Text>
-              {item.nextServiceAt ? <Text style={styles.cardInfo}>Proxima em: {item.nextServiceAt.toLocaleString('pt-BR')} km</Text> : null}
+              {item.nextServiceAt ? <Text style={styles.cardInfo}>Intervalo: {item.nextServiceAt.toLocaleString('pt-BR')} km</Text> : null}
               {item.description ? <Text style={styles.cardDescription}>{item.description}</Text> : null}
               <TouchableOpacity style={styles.deleteButton} onPress={() => handleDeleteMaintenance(item)}>
                 <Text style={styles.deleteButtonText}>Remover</Text>
@@ -689,10 +811,14 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
   homeContainer: {
-    flex: 1,
+    flexGrow: 1,
     alignItems: 'center',
     justifyContent: 'center',
     padding: 24,
+    backgroundColor: '#0B1120',
+  },
+  homeScroll: {
+    flex: 1,
     backgroundColor: '#0B1120',
   },
   logoContainer: {
@@ -846,6 +972,49 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 20,
     marginTop: 8,
+  },
+  alertPanel: {
+    width: '100%',
+    backgroundColor: '#22131A',
+    borderColor: '#BE185D',
+    borderRadius: 12,
+    borderWidth: 1,
+    marginBottom: 22,
+    padding: 14,
+  },
+  alertPanelOk: {
+    width: '100%',
+    backgroundColor: '#0F172A',
+    borderColor: '#14532D',
+    borderRadius: 12,
+    borderWidth: 1,
+    marginBottom: 22,
+    padding: 14,
+  },
+  alertPanelTitle: {
+    color: '#F8FAFC',
+    fontFamily: FONT_SEMIBOLD,
+    fontSize: 15,
+    lineHeight: 22,
+    marginBottom: 4,
+  },
+  alertPanelText: {
+    color: '#CBD5E1',
+    fontFamily: FONT_REGULAR,
+    fontSize: 13,
+    lineHeight: 20,
+  },
+  alertItem: {
+    borderTopColor: '#3F2432',
+    borderTopWidth: 1,
+    marginTop: 10,
+    paddingTop: 10,
+  },
+  alertItemTitle: {
+    color: '#FDA4CF',
+    fontFamily: FONT_SEMIBOLD,
+    fontSize: 14,
+    lineHeight: 21,
   },
   screenContainer: {
     flex: 1,

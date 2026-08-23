@@ -8,7 +8,7 @@ module.exports = [
     models: ['Onix', 'Onix Plus', 'Tracker', 'Montana', 'S10', 'Spin', 'Equinox', 'Trailblazer', 'Celta', 'Corsa', 'Prisma', 'Vectra', 'Astra', 'Omega', 'Monza', 'Kadett', 'Chevette', 'Opala', 'Agile', 'Zafira', 'Meriva'],
   },
   {
-    brand: 'CITROËN',
+    brand: 'CITROEN',
     models: ['C3', 'C4 Cactus', 'Aircross'],
   },
   {
@@ -21,11 +21,11 @@ module.exports = [
   },
   {
     brand: 'HONDA (Brasil)',
-    models: ['City', 'City Hatch', 'Civic', 'HR-V', 'Fit', 'Accord', 'CR-V', 'Civic (antigos)', 'City (antigos)'],
+    models: ['City', 'City Hatch', 'Civic', 'HR-V', 'Fit', 'Accord', 'CR-V', 'Civic antigo', 'City antigo'],
   },
   {
     brand: 'HYUNDAI (Brasil)',
-    models: ['HB20', 'HB20S', 'Creta', 'Creta N Line Hatch / Sedan', 'HB20 (gerações antigas)', 'HB20S (antigos)', 'Tucson (antigo – MUITO comum ainda)', 'ix35', 'Santa Fe', 'Veracruz'],
+    models: ['HB20', 'HB20S', 'Creta', 'Creta N Line', 'HB20 antigo', 'HB20S antigo', 'Tucson antigo', 'ix35', 'Santa Fe', 'Veracruz'],
   },
   {
     brand: 'JEEP',
@@ -33,7 +33,7 @@ module.exports = [
   },
   {
     brand: 'MERCEDES-BENZ (Brasil)',
-    models: ['Classe A', 'Classe C', 'Classe E', 'Classe S', 'GLA', 'GLB', 'GLC', 'GLE', 'GLS', 'Classe G', 'C180 / C200 / C250', 'E320 / E350', 'S500', 'ML (antigo GLE)', 'CLK', 'SLK'],
+    models: ['Classe A', 'Classe C', 'Classe E', 'Classe S', 'GLA', 'GLB', 'GLC', 'GLE', 'GLS', 'Classe G', 'C180', 'C200', 'C250', 'E320', 'E350', 'S500', 'ML', 'CLK', 'SLK'],
   },
   {
     brand: 'MITSUBISHI',
@@ -41,11 +41,11 @@ module.exports = [
   },
   {
     brand: 'NISSAN (Brasil)',
-    models: ['Versa', 'Kicks', 'X-Trail (novo chegando/importado)', 'Frontier', 'March', 'Versa (antigo)', 'Sentra', 'Kicks (gerações antigas)', 'Frontier (antigas também MUITO usadas)'],
+    models: ['Versa', 'Kicks', 'X-Trail', 'Frontier', 'March', 'Versa antigo', 'Sentra', 'Kicks antigo', 'Frontier antiga'],
   },
   {
     brand: 'PEUGEOT',
-    models: ['208', '2008', '308 (antigo)'],
+    models: ['208', '2008', '308 antigo'],
   },
   {
     brand: 'RENAULT',

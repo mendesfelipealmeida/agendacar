@@ -1,125 +1,113 @@
 # Agendacar
 
-Agendacar é um aplicativo para organizar e acompanhar a manutenção de veículos, atendendo clientes e mecânicos.
+Agendacar e um app para organizar veiculos, historico de manutencoes e alertas por quilometragem, com areas separadas para cliente e mecanico.
 
-## 🚀 Status do Projeto
+## Status atual
 
-✅ **Funcionalidades Implementadas:**
-- API REST completa (Node.js + Express + MongoDB)
-- App mobile com navegação completa
-- Cadastro de veículos com todas as marcas brasileiras
-- Interface moderna e intuitiva
-- Logo personalizado em SVG
+O projeto esta em fase de MVP funcional.
 
-🔄 **Em Desenvolvimento:**
-- Integração app ↔ API
-- Sistema de alertas automáticos
-- Histórico de manutenções
+Implementado:
 
-## 📱 Como executar
+- API REST com Node.js, Express, MongoDB e Mongoose.
+- CRUD de veiculos.
+- CRUD de manutencoes.
+- Exclusao em cascata das manutencoes ao remover um veiculo.
+- Endpoint de marcas e modelos em `GET /api/brands`.
+- App mobile Expo/React Native integrado com a API.
+- Areas Cliente e Mecanico.
+- Cadastro, listagem e remocao de veiculos.
+- Registro, listagem e remocao de manutencoes.
+- Atualizacao automatica da quilometragem do veiculo ao registrar manutencao.
+- Alertas de revisao vencida ou proxima nos proximos 1.000 km.
+- Configuracao EAS para builds Android.
+
+Ainda pendente para produto final:
+
+- Autenticacao de usuarios.
+- Banco em producao e URL publica da API.
+- Notificacoes push.
+- Edicao de veiculos/manutencoes.
+- Testes automatizados.
+- Politicas de backup e seguranca.
+
+## Como executar
 
 ### Backend
+
 ```bash
 cd backend
 npm install
-cp .env.example .env  # Configure o MongoDB
+cp .env.example .env
 npm run dev
 ```
 
+Por padrao, a API roda em `http://localhost:4000` e usa `mongodb://127.0.0.1:27017/agendacar`.
+
 ### Mobile
+
 ```bash
 cd mobile
 npm install
 npm start
 ```
 
-> 📖 **Guia Completo de Teste**: Veja [`GUIA_TESTE.md`](GUIA_TESTE.md) para instruções detalhadas de instalação e troubleshooting.
+O app tenta descobrir a API automaticamente durante o desenvolvimento. Se precisar apontar manualmente:
 
-## 🛠️ Stack Tecnológica
-
-- **Backend**: Node.js, Express, MongoDB, Mongoose
-- **Frontend**: React Native, Expo, React Navigation
-- **UI**: Styled Components, SVG
-- **Database**: MongoDB
-
-## 📂 Estrutura do Projeto
-
-```
-agendacar/
-├── backend/              # API REST
-│   ├── src/
-│   │   ├── models/       # Schemas MongoDB
-│   │   ├── routes/       # Endpoints da API
-│   │   ├── config/       # Configurações
-│   │   └── data/         # Dados estáticos
-├── mobile/               # App React Native
-│   ├── components/       # Componentes reutilizáveis
-│   ├── assets/           # Imagens e ícones
-│   └── App.js            # App principal
-├── Imagem/               # Logos e imagens
-└── README.md
+```bash
+EXPO_PUBLIC_API_URL=http://SEU_IP:4000 npm start
 ```
 
-## 🎯 Funcionalidades
+No Windows PowerShell:
 
-### ✅ Cadastro de Veículos
-- Seleção de marcas brasileiras organizadas alfabeticamente
-- Modelos atualizados e antigos
-- Campos: proprietário, placa, ano, quilometragem
-- Interface intuitiva com scroll horizontal
-
-### 🔄 Próximas Features
-- Histórico completo de manutenções
-- Alertas automáticos por quilometragem/data
-- Relatórios e estatísticas
-- Integração cliente/mecânico
-- Notificações push
-
-## 📋 API Endpoints
-
-```
-GET    /api/vehicles      # Lista veículos
-POST   /api/vehicles      # Cria veículo
-GET    /api/vehicles/:id  # Busca veículo
-PUT    /api/vehicles/:id  # Atualiza veículo
-DELETE /api/vehicles/:id  # Remove veículo
-
-GET    /api/maintenances      # Lista manutenções
-POST   /api/maintenances      # Registra manutenção
-GET    /api/maintenances/:id  # Busca manutenção
-PUT    /api/maintenances/:id  # Atualiza manutenção
-DELETE /api/maintenances/:id  # Remove manutenção
+```powershell
+$env:EXPO_PUBLIC_API_URL="http://SEU_IP:4000"
+npm start
 ```
 
-## 🤝 Como contribuir
+## API
 
-1. Fork o projeto
-2. Crie uma branch (`git checkout -b feature/nova-feature`)
-3. Commit suas mudanças (`git commit -am 'Adiciona nova feature'`)
-4. Push (`git push origin feature/nova-feature`)
-5. Abra um Pull Request
+```text
+GET    /api/brands
 
-## 📄 Licença
+GET    /api/vehicles
+POST   /api/vehicles
+GET    /api/vehicles/:id
+PUT    /api/vehicles/:id
+DELETE /api/vehicles/:id
 
-MIT License - veja o arquivo LICENSE para detalhes.
-4. Execute `npm start`
+GET    /api/maintenances
+POST   /api/maintenances
+GET    /api/maintenances/:id
+PUT    /api/maintenances/:id
+DELETE /api/maintenances/:id
+```
 
-> Se preferir, use o Expo Go no celular ou o emulador Android/iOS para testar o app.
+As rotas de veiculos e manutencoes aceitam filtro por area:
 
-## Nota sobre o logo
+```text
+GET /api/vehicles?area=client
+GET /api/maintenances?area=mechanic
+```
 
-O aplicativo usa um fundo temporário para rodar imediatamente. Se quiser usar o seu logo local, copie a imagem do diretório `Imagem/` para `mobile/assets/logo.png` e atualize o `source` em `mobile/App.js` para usar o arquivo local.
+## Estrutura
 
-## Recursos implementados
+```text
+backend/
+  src/
+    config/
+    data/
+    models/
+    routes/
+mobile/
+  assets/
+  components/
+  App.js
+Imagem/
+```
 
-- ✅ Backend com API para veículos e manutenções
-- ✅ Estrutura MongoDB com modelos de dados
-- ✅ App mobile com navegação completa
-- ✅ Tela inicial com logo personalizado
-- ✅ Cadastro completo de veículos com todas as marcas brasileiras
-- ✅ Interface intuitiva para seleção de marca e modelo
-- ✅ Lista de veículos cadastrados
-- ✅ Tela de histórico de manutenções (em desenvolvimento)
-- ✅ Design moderno e responsivo
-- 🔄 Integração com API do backend (próximo passo)
-- 🔄 Sistema de alertas automáticos (próximo passo)
+## Stack
+
+- Backend: Node.js, Express, MongoDB, Mongoose
+- Mobile: Expo, React Native
+- UI: React Native StyleSheet, React Native SVG, Poppins
+- Build: EAS

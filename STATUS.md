@@ -1,80 +1,40 @@
-# ✅ Implementações Realizadas - Agendacar
+# Status do Agendacar
 
-## 🎯 Funcionalidades Implementadas
+## Entregue
 
-### Backend (Node.js + Express + MongoDB)
-- ✅ API REST completa com 10 endpoints
-- ✅ Modelos de dados para Vehicle e Maintenance
-- ✅ Conexão com MongoDB configurada
-- ✅ Lista completa de marcas e modelos brasileiros
-- ✅ Estrutura organizada em pastas (models, routes, config, data)
-- ✅ Middleware CORS e JSON configurado
-- ✅ Arquivo .env.example para configuração
+- Backend Express com MongoDB.
+- Modelos `Vehicle` e `Maintenance`.
+- CRUD completo de veiculos.
+- CRUD completo de manutencoes.
+- Filtro por area (`client` e `mechanic`).
+- Endpoint de marcas/modelos em `/api/brands`.
+- App Expo com Area Cliente e Area Mecanico.
+- Cadastro de veiculos com marca, modelo, proprietario, placa, ano e km.
+- Registro de manutencoes com veiculo, servico, data, km, descricao e intervalo para proxima revisao.
+- Listagem e remocao de veiculos e manutencoes.
+- Atualizacao automatica da km do veiculo a partir da manutencao registrada.
+- Alertas na home para manutencao vencida ou proxima.
+- Configuracao EAS para APK interno e Android App Bundle.
 
-### Mobile (React Native + Expo)
-- ✅ App com navegação completa (3 telas)
-- ✅ Tela inicial com logo personalizado em SVG
-- ✅ Cadastro completo de veículos
-- ✅ Seleção de marcas com scroll horizontal
-- ✅ Seleção de modelos dinâmicos
-- ✅ Formulário com validação básica
-- ✅ Lista de veículos cadastrados
-- ✅ Interface moderna e responsiva
-- ✅ Componente LogoAgendacar reutilizável
-- ✅ Configurações do Expo atualizadas
+## Estado do MVP
 
-### Design & UX
-- ✅ Logo personalizado em SVG com gradientes
-- ✅ Paleta de cores consistente (azul escuro + vermelho)
-- ✅ Tipografia hierárquica
-- ✅ Botões e componentes padronizados
-- ✅ Layout responsivo
-- ✅ Feedback visual para interações
+O MVP esta funcional para uso local com MongoDB rodando na maquina. O app ja conversa com a API e nao depende mais de dados mockados para veiculos e manutencoes.
 
-### Arquivos de Configuração
-- ✅ package.json para backend e mobile
-- ✅ app.json configurado para Expo
-- ✅ metro.config.js para aliases
-- ✅ .gitignore apropriado
-- ✅ README.md completo e atualizado
-- ✅ INSTRUCOES.md com guia detalhado
+## Pendente antes de publicar
 
-## 🔄 Próximos Passos Sugeridos
+- Colocar o backend em producao.
+- Definir `EXPO_PUBLIC_API_URL` para a URL publica da API.
+- Implementar login e separacao real de usuarios.
+- Criar edicao de veiculos e manutencoes.
+- Adicionar notificacoes push para alertas.
+- Adicionar testes automatizados no backend e validacao de build mobile.
+- Revisar textos finais com acentos, marca e termos de uso.
 
-### 1. Integração App ↔ API
-- Conectar o app mobile com a API do backend
-- Implementar chamadas HTTP (fetch/axios)
-- Sincronização de dados offline/online
+## Proximo passo recomendado
 
-### 2. Sistema de Alertas
-- Alertas por quilometragem (ex: troca de óleo a cada 10.000km)
-- Alertas por tempo (ex: correia de acessórios)
-- Notificações push com Expo Notifications
-
-### 3. Histórico de Manutenções
-- Tela completa de registro de serviços
-- Categorias: troca de óleo, filtros, pneus, etc.
-- Histórico cronológico por veículo
-- Anexos de fotos/comprovantes
-
-### 4. Melhorias de UX
-- Campos de entrada reais (TextInput)
-- Validação avançada de formulários
-- Loading states e error handling
-- Animações de transição
-
-### 5. Recursos Avançados
-- Autenticação de usuários
-- Perfis de cliente e mecânico
-- Relatórios e estatísticas
-- Backup e sincronização na nuvem
-
-## 📊 Status Atual: 70% Completo
-
-O projeto Agendacar está **totalmente funcional** para:
-- ✅ Cadastro e gerenciamento de veículos
-- ✅ Estrutura base sólida para expansão
-- ✅ Interface moderna e intuitiva
-- ✅ API preparada para integração
-
-**Próximo passo recomendado**: Implementar a integração entre app e API para persistir dados no MongoDB.
+1. Rodar MongoDB local.
+2. Subir o backend com `npm run dev`.
+3. Abrir o app com `npm start`.
+4. Cadastrar um veiculo.
+5. Registrar uma manutencao com intervalo de proxima revisao.
+6. Aumentar a km do veiculo em uma nova manutencao e validar o alerta na home.
