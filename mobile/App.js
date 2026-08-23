@@ -17,8 +17,19 @@ import {
   Poppins_700Bold,
   useFonts,
 } from '@expo-google-fonts/poppins';
+import Constants from 'expo-constants';
 import { StatusBar } from 'expo-status-bar';
 import LogoAgendacar from './components/LogoAgendacar';
+
+function getHostFromUri(uri) {
+  if (!uri) return '';
+
+  const normalized = String(uri);
+  const protocolMatch = normalized.match(/^(?:https?|exp):\/\/([^:/]+)/);
+  if (protocolMatch) return protocolMatch[1];
+
+  return normalized.match(/^([^:/]+)(?::\d+)?/)?.[1] || '';
+}
 
 function getApiBaseUrl() {
   if (process.env.EXPO_PUBLIC_API_URL) {
@@ -30,8 +41,16 @@ function getApiBaseUrl() {
     return `http://${hostname}:4000`;
   }
 
-  const scriptUrl = NativeModules.SourceCode?.scriptURL || '';
-  const host = scriptUrl.match(/\/\/([^:/]+)/)?.[1];
+  const host = getHostFromUri(
+    Constants.expoConfig?.hostUri
+      || Constants.manifest2?.extra?.expoClient?.hostUri
+      || Constants.manifest?.debuggerHost
+      || Constants.platform?.hostUri
+      || Constants.linkingUri
+      || Constants.experienceUrl
+      || NativeModules.SourceCode?.scriptURL
+      || '',
+  );
 
   if (!host || host === 'localhost' || host === '127.0.0.1') {
     return Platform.OS === 'android' ? 'http://10.0.2.2:4000' : 'http://localhost:4000';
@@ -41,6 +60,7 @@ function getApiBaseUrl() {
 }
 
 const API_BASE_URL = getApiBaseUrl();
+console.log('Agendacar API_BASE_URL:', API_BASE_URL);
 
 const BRANDS = [
   'VOLKSWAGEN (Brasil)', 'CHEVROLET (GM Brasil)', 'FIAT (Brasil)',
