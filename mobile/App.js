@@ -95,6 +95,33 @@ const MODELS = {
 };
 
 const SERVICE_TYPES = ['Troca de oleo', 'Revisao', 'Pneus', 'Freios', 'Bateria', 'Suspensao', 'Outro'];
+const ORDER_STATUSES = [
+  'RECEBIDO',
+  'EM_DIAGNOSTICO',
+  'AGUARDANDO_APROVACAO',
+  'EM_MANUTENCAO',
+  'FINALIZANDO',
+  'PRONTO',
+  'ENTREGUE',
+  'CANCELADO',
+];
+const SERVICE_ORDER_STATUSES = ['PENDENTE', 'EM_ANDAMENTO', 'CONCLUIDO', 'CANCELADO'];
+const ORDER_STATUS_LABELS = {
+  RECEBIDO: 'Recebido',
+  EM_DIAGNOSTICO: 'Em diagnostico',
+  AGUARDANDO_APROVACAO: 'Aguardando aprovacao',
+  EM_MANUTENCAO: 'Em manutencao',
+  FINALIZANDO: 'Finalizando',
+  PRONTO: 'Pronto',
+  ENTREGUE: 'Entregue',
+  CANCELADO: 'Cancelado',
+};
+const SERVICE_STATUS_LABELS = {
+  PENDENTE: 'Pendente',
+  EM_ANDAMENTO: 'Em andamento',
+  CONCLUIDO: 'Concluido',
+  CANCELADO: 'Cancelado',
+};
 const FONT_REGULAR = 'Poppins_400Regular';
 const FONT_SEMIBOLD = 'Poppins_600SemiBold';
 const FONT_BOLD = 'Poppins_700Bold';
@@ -139,9 +166,20 @@ function formatVehicle(vehicle) {
   return `${vehicle.brand} ${vehicle.model}`;
 }
 
+function formatOrderVehicle(order) {
+  if (order.vehicle) return formatVehicle(order.vehicle);
+  const snapshot = order.vehicleSnapshot || {};
+  return `${snapshot.brand || 'Veiculo'} ${snapshot.model || ''}`.trim();
+}
+
 function formatDate(value) {
   if (!value) return 'Sem data';
   return new Date(value).toLocaleDateString('pt-BR');
+}
+
+function formatDateTime(value) {
+  if (!value) return 'Sem data';
+  return new Date(value).toLocaleString('pt-BR');
 }
 
 function todayBrazilianDate() {
@@ -256,6 +294,9 @@ export default function App() {
   const [currentArea, setCurrentArea] = useState(null);
   const [vehicles, setVehicles] = useState([]);
   const [maintenances, setMaintenances] = useState([]);
+  const [mechanics, setMechanics] = useState([]);
+  const [serviceOrders, setServiceOrders] = useState([]);
+  const [selectedServiceOrderId, setSelectedServiceOrderId] = useState('');
   const [brandOptions, setBrandOptions] = useState(BRANDS);
   const [modelsByBrand, setModelsByBrand] = useState(MODELS);
   const [loading, setLoading] = useState(false);
@@ -285,6 +326,8 @@ export default function App() {
     if (!currentArea) {
       setVehicles([]);
       setMaintenances([]);
+      setMechanics([]);
+      setServiceOrders([]);
       return;
     }
 
@@ -298,6 +341,30 @@ export default function App() {
       ]);
       setVehicles(vehiclesData);
       setMaintenances(maintenanceData);
+
+      if (currentArea === 'mechanic') {
+        const [mechanicsResult, serviceOrdersResult] = await Promise.allSettled([
+          requestJson('/api/mechanics'),
+          requestJson('/api/service-orders'),
+        ]);
+
+        if (mechanicsResult.status === 'fulfilled') {
+          setMechanics(mechanicsResult.value);
+        } else {
+          setMechanics([]);
+          console.warn('Agendacar mechanics load failed:', mechanicsResult.reason?.message);
+        }
+
+        if (serviceOrdersResult.status === 'fulfilled') {
+          setServiceOrders(serviceOrdersResult.value);
+        } else {
+          setServiceOrders([]);
+          console.warn('Agendacar service orders load failed:', serviceOrdersResult.reason?.message);
+        }
+      } else {
+        setMechanics([]);
+        setServiceOrders([]);
+      }
     } catch (error) {
       setErrorMessage(error.message);
     } finally {
@@ -344,6 +411,37 @@ export default function App() {
             onReload={loadData}
           />
         );
+      case 'mechanics':
+        return (
+          <MechanicsScreen
+            mechanics={mechanics}
+            onNavigate={setCurrentScreen}
+            onReload={loadData}
+          />
+        );
+      case 'serviceOrders':
+        return (
+          <ServiceOrdersScreen
+            mechanics={mechanics}
+            serviceOrders={serviceOrders}
+            vehicles={vehicles}
+            onNavigate={setCurrentScreen}
+            onOpenOrder={(id) => {
+              setSelectedServiceOrderId(id);
+              setCurrentScreen('serviceOrderDetail');
+            }}
+            onReload={loadData}
+          />
+        );
+      case 'serviceOrderDetail':
+        return (
+          <ServiceOrderDetailScreen
+            mechanics={mechanics}
+            order={serviceOrders.find((item) => item._id === selectedServiceOrderId)}
+            onNavigate={setCurrentScreen}
+            onReload={loadData}
+          />
+        );
       default:
         return (
           <HomeScreen
@@ -351,6 +449,8 @@ export default function App() {
             currentArea={currentArea}
             vehicles={vehicles}
             maintenanceAlerts={maintenanceAlerts}
+            mechanicsCount={mechanics.length}
+            serviceOrdersCount={serviceOrders.length}
             vehiclesCount={vehicles.length}
             maintenancesCount={maintenances.length}
             onSelectArea={(area) => {
@@ -431,6 +531,8 @@ const HomeScreen = ({
   errorMessage,
   vehicles,
   maintenanceAlerts,
+  mechanicsCount,
+  serviceOrdersCount,
   vehiclesCount,
   maintenancesCount,
   onChangeArea,
@@ -454,7 +556,9 @@ const HomeScreen = ({
             </TouchableOpacity>
           ) : currentArea === 'mechanic' ? (
             <PremiumWorkshopDashboard
+              mechanicsCount={mechanicsCount}
               maintenancesCount={maintenancesCount}
+              serviceOrdersCount={serviceOrdersCount}
               vehiclesCount={vehiclesCount}
               onNavigate={onNavigate}
             />
@@ -762,24 +866,30 @@ const PremiumDriverDashboard = ({ alerts, maintenancesCount, vehicles, vehiclesC
   );
 };
 
-const PremiumWorkshopDashboard = ({ maintenancesCount, vehiclesCount, onNavigate }) => (
+const PremiumWorkshopDashboard = ({
+  mechanicsCount,
+  maintenancesCount,
+  serviceOrdersCount,
+  vehiclesCount,
+  onNavigate,
+}) => (
   <>
     <PremiumSectionHeader eyebrow="Resumo da oficina" title="Operacao em andamento" />
     <View style={styles.premiumWorkshopPanel}>
       <PremiumMetric accent="workshop" label="Clientes" value={vehiclesCount} />
       <PremiumMetric accent="workshop" label="Veiculos" value={vehiclesCount} />
-      <PremiumMetric accent="workshop" label="Servicos" value={maintenancesCount} />
-      <PremiumMetric accent="workshop" label="Manutencoes" value={maintenancesCount} />
+      <PremiumMetric accent="workshop" label="Equipe" value={mechanicsCount} />
+      <PremiumMetric accent="workshop" label="OS" value={serviceOrdersCount} />
       <PremiumMetric accent="workshop" label="Agendamentos" value="0" />
     </View>
 
     <PremiumShortcutGrid
       accent="workshop"
       items={[
+        { label: 'Equipe', helper: 'Mecanicos', onPress: () => onNavigate('mechanics') },
+        { label: 'Ordens de Servico', helper: 'OS da oficina', onPress: () => onNavigate('serviceOrders') },
         { label: 'Clientes', helper: 'Veiculos atendidos', onPress: () => onNavigate('vehicles') },
         { label: 'Servicos', helper: 'Historico da oficina', onPress: () => onNavigate('maintenance') },
-        { label: 'Agenda', helper: 'Em breve' },
-        { label: 'Avaliacoes', helper: 'Em breve' },
       ]}
     />
   </>
@@ -884,8 +994,8 @@ const PremiumBottomNav = ({ area, onNavigate }) => {
     ? [
       { label: 'Inicio', icon: 'I' },
       { label: 'Clientes', icon: 'C', onPress: () => onNavigate('vehicles') },
-      { label: 'Servicos', icon: 'S', onPress: () => onNavigate('maintenance') },
-      { label: 'Agenda', icon: 'A' },
+      { label: 'OS', icon: 'O', onPress: () => onNavigate('serviceOrders') },
+      { label: 'Equipe', icon: 'E', onPress: () => onNavigate('mechanics') },
       { label: 'Perfil', icon: 'P' },
     ]
     : [
@@ -1289,6 +1399,451 @@ const MaintenanceScreen = ({ area, vehicles, maintenances, onNavigate, onReload 
   );
 };
 
+const MechanicsScreen = ({ mechanics, onNavigate, onReload }) => {
+  const [editingMechanic, setEditingMechanic] = useState(null);
+  const [name, setName] = useState('');
+  const [role, setRole] = useState('');
+  const [phone, setPhone] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const resetForm = () => {
+    setEditingMechanic(null);
+    setName('');
+    setRole('');
+    setPhone('');
+  };
+
+  const startEdit = (mechanic) => {
+    setEditingMechanic(mechanic);
+    setName(mechanic.name || '');
+    setRole(mechanic.role || '');
+    setPhone(mechanic.phone || '');
+  };
+
+  const handleSave = async () => {
+    if (!name.trim() || !role.trim()) {
+      Alert.alert('Campos obrigatorios', 'Preencha nome e funcao do mecanico.');
+      return;
+    }
+
+    try {
+      setSaving(true);
+      await requestJson(editingMechanic ? `/api/mechanics/${editingMechanic._id}` : '/api/mechanics', {
+        method: editingMechanic ? 'PUT' : 'POST',
+        body: JSON.stringify({
+          name: name.trim(),
+          role: role.trim(),
+          phone: phone.trim(),
+        }),
+      });
+      resetForm();
+      await onReload();
+    } catch (error) {
+      Alert.alert('Erro', error.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleToggleActive = async (mechanic) => {
+    try {
+      await requestJson(`/api/mechanics/${mechanic._id}/status`, {
+        method: 'PATCH',
+        body: JSON.stringify({ active: !mechanic.active }),
+      });
+      await onReload();
+    } catch (error) {
+      Alert.alert('Erro', error.message);
+    }
+  };
+
+  return (
+    <ScrollView style={styles.screenContainer} keyboardShouldPersistTaps="handled">
+      <Header title="Equipe da Oficina" subtitle="Mecanicos e funcionarios" onBack={() => onNavigate('home')} />
+
+      <View style={styles.form}>
+        <Input label="Nome *" value={name} onChangeText={setName} placeholder="Ex: Joao Silva" />
+        <Input label="Funcao *" value={role} onChangeText={setRole} placeholder="Ex: Mecanico geral" />
+        <Input label="Telefone" value={phone} onChangeText={setPhone} placeholder="Opcional" keyboardType="phone-pad" />
+
+        <TouchableOpacity style={[styles.saveButton, saving && styles.disabledButton]} onPress={handleSave} disabled={saving}>
+          <Text style={styles.saveButtonText}>{saving ? 'Salvando...' : editingMechanic ? 'Salvar Alteracoes' : 'Cadastrar Mecanico'}</Text>
+        </TouchableOpacity>
+        {editingMechanic ? (
+          <TouchableOpacity style={styles.secondaryAction} onPress={resetForm}>
+            <Text style={styles.secondaryActionText}>Cancelar edicao</Text>
+          </TouchableOpacity>
+        ) : null}
+      </View>
+
+      <View style={styles.list}>
+        <Text style={styles.listTitle}>Mecanicos cadastrados</Text>
+        {mechanics.length === 0 ? (
+          <EmptyState text="Nenhum mecanico cadastrado ainda." />
+        ) : (
+          mechanics.map((mechanic) => (
+            <View key={mechanic._id} style={styles.card}>
+              <View style={styles.cardTopRow}>
+                <Text style={styles.cardTitle}>{mechanic.name}</Text>
+                <View style={[styles.vehicleStatusPill, { borderColor: mechanic.active ? COLORS.success : COLORS.muted }]}>
+                  <Text style={[styles.vehicleStatusPillText, { color: mechanic.active ? COLORS.success : COLORS.muted }]}>
+                    {mechanic.active ? 'Ativo' : 'Inativo'}
+                  </Text>
+                </View>
+              </View>
+              <Text style={styles.cardInfo}>Funcao: {mechanic.role}</Text>
+              <Text style={styles.cardInfo}>Telefone: {mechanic.phone || '-'}</Text>
+              <Text style={styles.cardInfo}>Cadastro: {formatDate(mechanic.createdAt)}</Text>
+              <View style={styles.cardActionsRow}>
+                <TouchableOpacity style={styles.smallActionButton} onPress={() => startEdit(mechanic)}>
+                  <Text style={styles.smallActionText}>Editar</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.smallActionButton} onPress={() => handleToggleActive(mechanic)}>
+                  <Text style={styles.smallActionText}>{mechanic.active ? 'Desativar' : 'Ativar'}</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          ))
+        )}
+      </View>
+    </ScrollView>
+  );
+};
+
+const ServiceOrdersScreen = ({
+  mechanics,
+  serviceOrders,
+  vehicles,
+  onNavigate,
+  onOpenOrder,
+  onReload,
+}) => {
+  const [vehicleId, setVehicleId] = useState(vehicles[0]?._id || '');
+  const [entryMileage, setEntryMileage] = useState('');
+  const [customerNotes, setCustomerNotes] = useState('');
+  const [serviceDescription, setServiceDescription] = useState('');
+  const [mechanicId, setMechanicId] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!vehicleId && vehicles[0]?._id) setVehicleId(vehicles[0]._id);
+  }, [vehicleId, vehicles]);
+
+  const handleCreateOrder = async () => {
+    if (!vehicleId) {
+      Alert.alert('Veiculo obrigatorio', 'Cadastre e selecione um veiculo de cliente para abrir uma OS.');
+      return;
+    }
+
+    try {
+      setSaving(true);
+      const services = serviceDescription.trim()
+        ? [{
+          description: serviceDescription.trim(),
+          mechanic: mechanicId || undefined,
+        }]
+        : [];
+
+      const saved = await requestJson('/api/service-orders', {
+        method: 'POST',
+        body: JSON.stringify({
+          vehicle: vehicleId,
+          entryMileage: Number.parseInt(entryMileage, 10) || undefined,
+          customerNotes: customerNotes.trim(),
+          services,
+        }),
+      });
+
+      setEntryMileage('');
+      setCustomerNotes('');
+      setServiceDescription('');
+      setMechanicId('');
+      await onReload();
+      onOpenOrder(saved._id);
+    } catch (error) {
+      Alert.alert('Erro', error.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <ScrollView style={styles.screenContainer} keyboardShouldPersistTaps="handled">
+      <Header title="Ordens de Servico" subtitle="Controle da oficina" onBack={() => onNavigate('home')} />
+
+      <View style={styles.form}>
+        <Text style={styles.label}>Veiculo *</Text>
+        {vehicles.length === 0 ? (
+          <TouchableOpacity style={styles.warningBox} onPress={() => onNavigate('vehicles')}>
+            <Text style={styles.warningText}>Cadastre um veiculo de cliente antes de abrir uma OS.</Text>
+          </TouchableOpacity>
+        ) : (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.optionScroll}>
+            {vehicles.map((vehicle) => (
+              <TouchableOpacity
+                key={vehicle._id}
+                style={[styles.optionButton, vehicleId === vehicle._id && styles.optionButtonSelected]}
+                onPress={() => setVehicleId(vehicle._id)}
+              >
+                <Text style={[styles.optionButtonText, vehicleId === vehicle._id && styles.optionButtonTextSelected]}>
+                  {formatVehicle(vehicle)}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        )}
+
+        <Input label="Quilometragem de entrada" value={entryMileage} onChangeText={setEntryMileage} placeholder="0" keyboardType="numeric" />
+        <Input
+          label="Reclamacao/observacoes do cliente"
+          value={customerNotes}
+          onChangeText={setCustomerNotes}
+          placeholder="Ex: barulho ao frear"
+          multiline
+        />
+        <Input
+          label="Primeiro servico solicitado"
+          value={serviceDescription}
+          onChangeText={setServiceDescription}
+          placeholder="Ex: troca de oleo"
+        />
+
+        <MechanicSelector mechanics={mechanics} selectedId={mechanicId} onSelect={setMechanicId} />
+
+        <TouchableOpacity
+          style={[styles.saveButton, (saving || vehicles.length === 0) && styles.disabledButton]}
+          onPress={handleCreateOrder}
+          disabled={saving || vehicles.length === 0}
+        >
+          <Text style={styles.saveButtonText}>{saving ? 'Abrindo...' : 'Abrir OS'}</Text>
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.list}>
+        <Text style={styles.listTitle}>Ordens abertas e historico</Text>
+        {serviceOrders.length === 0 ? (
+          <EmptyState text="Nenhuma ordem de servico cadastrada ainda." />
+        ) : (
+          serviceOrders.map((order) => (
+            <TouchableOpacity key={order._id} style={styles.card} onPress={() => onOpenOrder(order._id)}>
+              <View style={styles.cardTopRow}>
+                <Text style={styles.cardTitle}>OS {order.number}</Text>
+                <View style={[styles.vehicleStatusPill, { borderColor: COLORS.gold }]}>
+                  <Text style={[styles.vehicleStatusPillText, { color: COLORS.gold }]}>
+                    {ORDER_STATUS_LABELS[order.status] || order.status}
+                  </Text>
+                </View>
+              </View>
+              <Text style={styles.cardInfo}>Veiculo: {formatOrderVehicle(order)}</Text>
+              <Text style={styles.cardInfo}>Cliente: {order.customerName || '-'}</Text>
+              <Text style={styles.cardInfo}>Entrada: {formatDateTime(order.entryAt)}</Text>
+              <Text style={styles.cardInfo}>Servicos: {order.services?.length || 0}</Text>
+              <Text style={styles.errorAction}>Abrir detalhes</Text>
+            </TouchableOpacity>
+          ))
+        )}
+      </View>
+    </ScrollView>
+  );
+};
+
+const ServiceOrderDetailScreen = ({ mechanics, order, onNavigate, onReload }) => {
+  const [serviceDescription, setServiceDescription] = useState('');
+  const [mechanicId, setMechanicId] = useState('');
+  const [serviceNotes, setServiceNotes] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  if (!order) {
+    return (
+      <ScrollView style={styles.screenContainer}>
+        <Header title="Ordem de Servico" subtitle="Detalhes" onBack={() => onNavigate('serviceOrders')} />
+        <View style={styles.form}>
+          <EmptyState text="OS nao encontrada. Volte para a lista e tente novamente." />
+        </View>
+      </ScrollView>
+    );
+  }
+
+  const updateOrderStatus = async (status) => {
+    try {
+      await requestJson(`/api/service-orders/${order._id}/status`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status }),
+      });
+      await onReload();
+    } catch (error) {
+      Alert.alert('Erro', error.message);
+    }
+  };
+
+  const addService = async () => {
+    if (!serviceDescription.trim()) {
+      Alert.alert('Servico obrigatorio', 'Informe a descricao do servico.');
+      return;
+    }
+
+    try {
+      setSaving(true);
+      await requestJson(`/api/service-orders/${order._id}/services`, {
+        method: 'POST',
+        body: JSON.stringify({
+          description: serviceDescription.trim(),
+          mechanic: mechanicId || undefined,
+          notes: serviceNotes.trim(),
+        }),
+      });
+      setServiceDescription('');
+      setMechanicId('');
+      setServiceNotes('');
+      await onReload();
+    } catch (error) {
+      Alert.alert('Erro', error.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const updateService = async (serviceId, payload) => {
+    try {
+      await requestJson(`/api/service-orders/${order._id}/services/${serviceId}`, {
+        method: 'PATCH',
+        body: JSON.stringify(payload),
+      });
+      await onReload();
+    } catch (error) {
+      Alert.alert('Erro', error.message);
+    }
+  };
+
+  return (
+    <ScrollView style={styles.screenContainer} keyboardShouldPersistTaps="handled">
+      <Header title={`OS ${order.number}`} subtitle={ORDER_STATUS_LABELS[order.status] || order.status} onBack={() => onNavigate('serviceOrders')} />
+
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>{formatOrderVehicle(order)}</Text>
+        <Text style={styles.cardInfo}>Cliente: {order.customerName || '-'}</Text>
+        <Text style={styles.cardInfo}>Placa: {order.vehicle?.licensePlate || order.vehicleSnapshot?.licensePlate || '-'}</Text>
+        <Text style={styles.cardInfo}>Entrada: {formatDateTime(order.entryAt)}</Text>
+        <Text style={styles.cardInfo}>Km entrada: {(order.entryMileage || 0).toLocaleString('pt-BR')}</Text>
+        {order.customerNotes ? <Text style={styles.cardDescription}>{order.customerNotes}</Text> : null}
+      </View>
+
+      <View style={styles.form}>
+        <Text style={styles.label}>Status da OS</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.optionScroll}>
+          {ORDER_STATUSES.map((status) => (
+            <TouchableOpacity
+              key={status}
+              style={[styles.smallOptionButton, order.status === status && styles.smallOptionButtonSelected]}
+              onPress={() => updateOrderStatus(status)}
+            >
+              <Text style={[styles.smallOptionButtonText, order.status === status && styles.optionButtonTextSelected]}>
+                {ORDER_STATUS_LABELS[status]}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
+
+      <View style={styles.form}>
+        <Text style={styles.listTitle}>Adicionar servico</Text>
+        <Input label="Descricao *" value={serviceDescription} onChangeText={setServiceDescription} placeholder="Ex: troca das pastilhas" />
+        <MechanicSelector mechanics={mechanics} selectedId={mechanicId} onSelect={setMechanicId} />
+        <Input label="Observacao" value={serviceNotes} onChangeText={setServiceNotes} placeholder="Opcional" multiline />
+        <TouchableOpacity style={[styles.saveButton, saving && styles.disabledButton]} onPress={addService} disabled={saving}>
+          <Text style={styles.saveButtonText}>{saving ? 'Adicionando...' : 'Adicionar Servico'}</Text>
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.list}>
+        <Text style={styles.listTitle}>Servicos da OS</Text>
+        {order.services?.length ? (
+          order.services.map((service) => (
+            <View key={service._id} style={styles.card}>
+              <Text style={styles.cardTitle}>{service.description}</Text>
+              <Text style={styles.cardInfo}>Responsavel: {service.mechanicName || service.mechanic?.name || 'Nao atribuido'}</Text>
+              <Text style={styles.cardInfo}>Funcao: {service.mechanicRole || service.mechanic?.role || '-'}</Text>
+              <Text style={styles.cardInfo}>Status: {SERVICE_STATUS_LABELS[service.status] || service.status}</Text>
+              {service.startedAt ? <Text style={styles.cardInfo}>Inicio: {formatDateTime(service.startedAt)}</Text> : null}
+              {service.completedAt ? <Text style={styles.cardInfo}>Conclusao: {formatDateTime(service.completedAt)}</Text> : null}
+              {service.notes ? <Text style={styles.cardDescription}>{service.notes}</Text> : null}
+
+              <MechanicSelector
+                compact
+                mechanics={mechanics}
+                selectedId={getVehicleId(service.mechanic)}
+                onSelect={(id) => updateService(service._id, { mechanic: id })}
+              />
+
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.optionScroll}>
+                {SERVICE_ORDER_STATUSES.map((status) => (
+                  <TouchableOpacity
+                    key={status}
+                    style={[styles.smallOptionButton, service.status === status && styles.smallOptionButtonSelected]}
+                    onPress={() => updateService(service._id, { status })}
+                  >
+                    <Text style={[styles.smallOptionButtonText, service.status === status && styles.optionButtonTextSelected]}>
+                      {SERVICE_STATUS_LABELS[status]}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+          ))
+        ) : (
+          <EmptyState text="Nenhum servico adicionado nesta OS." />
+        )}
+      </View>
+
+      <View style={styles.list}>
+        <Text style={styles.listTitle}>Auditoria</Text>
+        {order.auditEvents?.length ? (
+          order.auditEvents.slice().reverse().map((event, index) => (
+            <View key={`${event.createdAt}-${index}`} style={styles.auditItem}>
+              <Text style={styles.auditTitle}>{event.type}</Text>
+              <Text style={styles.cardInfo}>{event.description}</Text>
+              <Text style={styles.cardInfo}>{formatDateTime(event.createdAt)}</Text>
+            </View>
+          ))
+        ) : (
+          <EmptyState text="Nenhum evento registrado ainda." />
+        )}
+      </View>
+    </ScrollView>
+  );
+};
+
+const MechanicSelector = ({ compact, mechanics, selectedId, onSelect }) => {
+  const activeMechanics = mechanics.filter((mechanic) => mechanic.active);
+
+  return (
+    <>
+      <Text style={styles.label}>{compact ? 'Trocar responsavel' : 'Mecanico responsavel'}</Text>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.optionScroll}>
+        <TouchableOpacity
+          style={[styles.smallOptionButton, !selectedId && styles.smallOptionButtonSelected]}
+          onPress={() => onSelect('')}
+        >
+          <Text style={[styles.smallOptionButtonText, !selectedId && styles.optionButtonTextSelected]}>
+            Sem responsavel
+          </Text>
+        </TouchableOpacity>
+        {activeMechanics.map((mechanic) => (
+          <TouchableOpacity
+            key={mechanic._id}
+            style={[styles.smallOptionButton, selectedId === mechanic._id && styles.smallOptionButtonSelected]}
+            onPress={() => onSelect(mechanic._id)}
+          >
+            <Text style={[styles.smallOptionButtonText, selectedId === mechanic._id && styles.optionButtonTextSelected]}>
+              {mechanic.name}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+    </>
+  );
+};
+
 const Header = ({ title, subtitle, onBack }) => (
   <View style={styles.header}>
     <TouchableOpacity onPress={onBack} style={styles.backButton}>
@@ -1624,6 +2179,19 @@ const styles = StyleSheet.create({
   primaryActionText: {
     color: COLORS.text,
     fontFamily: FONT_BOLD,
+    fontSize: 13,
+  },
+  secondaryAction: {
+    alignItems: 'center',
+    borderColor: COLORS.gold,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginTop: 12,
+    padding: 13,
+  },
+  secondaryActionText: {
+    color: COLORS.gold,
+    fontFamily: FONT_SEMIBOLD,
     fontSize: 13,
   },
   vehicleInfoGrid: {
@@ -2245,6 +2813,39 @@ const styles = StyleSheet.create({
     fontFamily: FONT_REGULAR,
     fontSize: 14,
     marginTop: 8,
+  },
+  cardActionsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    marginTop: 14,
+  },
+  smallActionButton: {
+    borderColor: COLORS.gold,
+    borderRadius: 10,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  smallActionText: {
+    color: COLORS.gold,
+    fontFamily: FONT_SEMIBOLD,
+    fontSize: 13,
+    lineHeight: 19,
+  },
+  auditItem: {
+    backgroundColor: COLORS.surface,
+    borderColor: COLORS.border,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginBottom: 10,
+    padding: 14,
+  },
+  auditTitle: {
+    color: COLORS.gold,
+    fontFamily: FONT_BOLD,
+    fontSize: 13,
+    lineHeight: 19,
   },
   deleteButton: {
     alignSelf: 'flex-start',

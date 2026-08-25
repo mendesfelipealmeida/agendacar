@@ -4,6 +4,8 @@ const dotenv = require('dotenv');
 const connectDatabase = require('./config/db');
 const vehicleRoutes = require('./routes/vehicles');
 const maintenanceRoutes = require('./routes/maintenances');
+const mechanicRoutes = require('./routes/mechanics');
+const serviceOrderRoutes = require('./routes/serviceOrders');
 const brands = require('./data/brands');
 
 dotenv.config();
@@ -25,6 +27,8 @@ app.get('/api/brands', (req, res) => {
 
 app.use('/api/vehicles', vehicleRoutes);
 app.use('/api/maintenances', maintenanceRoutes);
+app.use('/api/mechanics', mechanicRoutes);
+app.use('/api/service-orders', serviceOrderRoutes);
 
 app.listen(port, () => {
   console.log(`Servidor rodando em http://localhost:${port}`);
