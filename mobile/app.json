@@ -13,7 +13,7 @@
       "**/*"
     ],
     "orientation": "portrait",
-    "primaryColor": "#1e3a8a",
+    "primaryColor": "#0B1D33",
     "icon": "./assets/icon.png",
     "android": {
       "package": "com.agendacar.app",
@@ -31,7 +31,7 @@
         {
           "image": "./assets/splash.png",
           "resizeMode": "contain",
-          "backgroundColor": "#1e3a8a"
+          "backgroundColor": "#0B1D33"
         }
       ]
     ],

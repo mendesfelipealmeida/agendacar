@@ -1,4 +1,24 @@
-Copie o logo do aplicativo para este diretório como logo.png.
+Assets oficiais da identidade premium AgendCar.
 
-O app Expo usa este arquivo para o fundo da tela inicial:
-require('./assets/logo.png')
+Arquivos ativos:
+
+- icon.png
+  - icone oficial do aplicativo
+  - PNG
+
+- splash.png
+  - imagem da splash nativa e da SplashScreen animada
+  - PNG
+
+- logo.png
+  - logo usado dentro do aplicativo
+  - PNG
+
+Backups legados:
+
+- legacy-icon-rosa-preto.png
+- legacy-logo-rosa-preto.png
+- legacy-splash-rosa-preto.png
+
+Depois de substituir os arquivos, reinicie o Expo com cache limpo:
+npx expo start --clear
